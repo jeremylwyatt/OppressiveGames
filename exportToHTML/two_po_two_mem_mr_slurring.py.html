@@ -1,0 +1,524 @@
+<html>
+<head>
+<title>two_po_two_mem_mr_slurring.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cc7832;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #808080;}
+.s3 { color: #6897bb;}
+.s4 { color: #6a8759;}
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+two_po_two_mem_mr_slurring.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">random</span>
+<span class="s0">import </span><span class="s1">numpy</span>
+<span class="s0">import </span><span class="s1">matplotlib.pyplot </span><span class="s0">as </span><span class="s1">plt</span>
+
+<span class="s2"># This script runs rounds of simulation of a Nash demand game</span>
+<span class="s2"># there are the following functions</span>
+<span class="s2"># play(agent_i_move, agent_j_move, reward_func)</span>
+<span class="s2"># simulate(agents, reward_func, moves, number_of_rounds = 100, max_mem_length = 4, pop1size = 100, pop2size = 100)</span>
+<span class="s2"># record_reward_history(agent_i_pop_code, agent_j_pop_code, outcome, reward_history_blue, reward_history_yellow)</span>
+<span class="s2"># agent_choose(agent_i, agent_i_number, agent_j, agent_j_number, reward_func, moves)</span>
+<span class="s2"># select_reward_matrix(agent_i_pop_code, agent_j_pop_code, reward_func)</span>
+<span class="s2"># best_response(agent, policy_other_agent, reward_matrix, moves, agent_order)</span>
+<span class="s2"># expected_payoff(action, policy_other_agent, reward_matrix, moves, agent_order)</span>
+<span class="s2"># convert_moves(agent_moves)</span>
+<span class="s2"># prob_dist(agent_memory, moves)</span>
+<span class="s2"># analyse_simulation(ts1, ts2, j)</span>
+
+
+<span class="s2"># define population sizes for each group</span>
+<span class="s1">population1_size = </span><span class="s3">100</span>
+<span class="s1">population2_size = </span><span class="s3">100</span>
+
+<span class="s2"># define the payoffs</span>
+<span class="s2"># define the possible bids (these can be payoffs)</span>
+<span class="s1">L = </span><span class="s3">4  </span><span class="s2"># Low bid</span>
+<span class="s1">M = </span><span class="s3">5  </span><span class="s2"># Medium bid</span>
+<span class="s1">H = </span><span class="s3">6  </span><span class="s2"># High bid</span>
+
+<span class="s1">B = </span><span class="s3">0  </span><span class="s2"># Powerful population code</span>
+<span class="s1">Y = </span><span class="s3">1  </span><span class="s2"># Weaker population code</span>
+
+<span class="s2"># define the disagreement points</span>
+<span class="s2"># these are payoffs if agents bid for more resource than exists</span>
+<span class="s1">B_D = </span><span class="s3">4  </span><span class="s2"># Strong (blue) population disagreement point</span>
+<span class="s1">Y_d = </span><span class="s3">0  </span><span class="s2"># Weak (yellow) population disagreement point</span>
+
+<span class="s2"># define the reward (payoff) function for a single round of play</span>
+<span class="s2"># between two agents using the above defined payoffs</span>
+<span class="s2"># we index this reward 'matrix' with a 'row' index and a 'column' index</span>
+<span class="s2"># first matrix is for B,B</span>
+<span class="s2"># second matrix is for B,Y</span>
+<span class="s2"># third matrix is for Y,B</span>
+<span class="s2"># fourth matrix is for Y,Y</span>
+
+<span class="s1">reward_function = [</span>
+<span class="s2"># Blue vs Blue</span>
+                    <span class="s1">[[[L</span><span class="s0">, </span><span class="s1">L]</span><span class="s0">, </span><span class="s1">[L</span><span class="s0">, </span><span class="s1">M]</span><span class="s0">, </span><span class="s1">[L</span><span class="s0">, </span><span class="s1">H]]</span><span class="s0">,</span>
+                     <span class="s1">[[M</span><span class="s0">, </span><span class="s1">L]</span><span class="s0">, </span><span class="s1">[M</span><span class="s0">, </span><span class="s1">M]</span><span class="s0">, </span><span class="s1">[B_D</span><span class="s0">, </span><span class="s1">B_D]]</span><span class="s0">,</span>
+                     <span class="s1">[[H</span><span class="s0">, </span><span class="s1">L]</span><span class="s0">, </span><span class="s1">[B_D</span><span class="s0">, </span><span class="s1">B_D]</span><span class="s0">, </span><span class="s1">[B_D</span><span class="s0">, </span><span class="s1">B_D]]]</span><span class="s0">,</span>
+<span class="s2"># Blue vs Yellow</span>
+                    <span class="s1">[[[L</span><span class="s0">, </span><span class="s1">L]</span><span class="s0">, </span><span class="s1">[L</span><span class="s0">, </span><span class="s1">M]</span><span class="s0">, </span><span class="s1">[L</span><span class="s0">, </span><span class="s1">H]]</span><span class="s0">,</span>
+                     <span class="s1">[[M</span><span class="s0">, </span><span class="s1">L]</span><span class="s0">, </span><span class="s1">[M</span><span class="s0">, </span><span class="s1">M]</span><span class="s0">, </span><span class="s1">[B_D</span><span class="s0">, </span><span class="s1">Y_d]]</span><span class="s0">,</span>
+                     <span class="s1">[[H</span><span class="s0">, </span><span class="s1">L]</span><span class="s0">, </span><span class="s1">[B_D</span><span class="s0">, </span><span class="s1">Y_d]</span><span class="s0">, </span><span class="s1">[B_D</span><span class="s0">, </span><span class="s1">Y_d]]]</span><span class="s0">,</span>
+<span class="s2"># Yellow vs Blue</span>
+                    <span class="s1">[[[L</span><span class="s0">, </span><span class="s1">L]</span><span class="s0">, </span><span class="s1">[L</span><span class="s0">, </span><span class="s1">M]</span><span class="s0">, </span><span class="s1">[L</span><span class="s0">, </span><span class="s1">H]]</span><span class="s0">,</span>
+                     <span class="s1">[[M</span><span class="s0">, </span><span class="s1">L]</span><span class="s0">, </span><span class="s1">[M</span><span class="s0">, </span><span class="s1">M]</span><span class="s0">, </span><span class="s1">[Y_d</span><span class="s0">, </span><span class="s1">B_D]]</span><span class="s0">,</span>
+                     <span class="s1">[[H</span><span class="s0">, </span><span class="s1">L]</span><span class="s0">, </span><span class="s1">[Y_d</span><span class="s0">, </span><span class="s1">B_D]</span><span class="s0">, </span><span class="s1">[Y_d</span><span class="s0">, </span><span class="s1">B_D]]]</span><span class="s0">,</span>
+<span class="s2"># Yellow vs Yellow</span>
+                    <span class="s1">[[[L</span><span class="s0">, </span><span class="s1">L]</span><span class="s0">, </span><span class="s1">[L</span><span class="s0">, </span><span class="s1">M]</span><span class="s0">, </span><span class="s1">[L</span><span class="s0">, </span><span class="s1">H]]</span><span class="s0">,</span>
+                     <span class="s1">[[M</span><span class="s0">, </span><span class="s1">L]</span><span class="s0">, </span><span class="s1">[M</span><span class="s0">, </span><span class="s1">M]</span><span class="s0">, </span><span class="s1">[Y_d</span><span class="s0">, </span><span class="s1">Y_d]]</span><span class="s0">,</span>
+                     <span class="s1">[[H</span><span class="s0">, </span><span class="s1">L]</span><span class="s0">, </span><span class="s1">[Y_d</span><span class="s0">, </span><span class="s1">Y_d]</span><span class="s0">, </span><span class="s1">[Y_d</span><span class="s0">, </span><span class="s1">Y_d]]]]</span>
+
+<span class="s2"># define the moves as indices into the reward function</span>
+<span class="s1">L_move = </span><span class="s3">0  </span><span class="s2"># this indexes the first 'row' or the first 'column' above</span>
+<span class="s1">M_move = </span><span class="s3">1  </span><span class="s2"># this indexes the second 'row' or 'column'</span>
+<span class="s1">H_move = </span><span class="s3">2  </span><span class="s2"># this indexes the third 'row' or 'column'</span>
+
+<span class="s1">moves = [L_move</span><span class="s0">, </span><span class="s1">M_move</span><span class="s0">, </span><span class="s1">H_move]</span>
+
+<span class="s2"># the list of agents from population 1</span>
+<span class="s2"># each agent comprises</span>
+<span class="s2"># code indicating membership of population 1 (blue population)</span>
+<span class="s2"># a memory of interactions with blue agents (always come first)</span>
+<span class="s2"># a memory of interactions with yellow agents (always come second)</span>
+<span class="s2"># all memories are empty</span>
+<span class="s1">agents = []</span>
+<span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">range(</span><span class="s3">0</span><span class="s0">, </span><span class="s1">population1_size):</span>
+    <span class="s0">if </span><span class="s1">random.randint(</span><span class="s3">1</span><span class="s0">, </span><span class="s3">100</span><span class="s1">) &gt; </span><span class="s3">95</span><span class="s1">:</span>
+        <span class="s1">a = </span><span class="s3">1</span>
+    <span class="s0">else</span><span class="s1">:</span>
+        <span class="s1">a = random.betavariate(</span><span class="s3">1</span><span class="s0">, </span><span class="s3">4</span><span class="s1">)</span>
+    <span class="s1">agents.append([[random.randint(</span><span class="s3">0</span><span class="s0">, </span><span class="s3">2</span><span class="s1">)]</span><span class="s0">, </span><span class="s1">[random.randint(</span><span class="s3">0</span><span class="s0">, </span><span class="s3">2</span><span class="s1">)]</span><span class="s0">, </span><span class="s1">a</span><span class="s0">, </span><span class="s1">B])</span>
+
+<span class="s2"># append the list of agents from population 2</span>
+<span class="s0">for </span><span class="s1">y </span><span class="s0">in </span><span class="s1">range(</span><span class="s3">1</span><span class="s0">, </span><span class="s1">population2_size):</span>
+    <span class="s1">agents.append([[random.randint(</span><span class="s3">0</span><span class="s0">, </span><span class="s3">2</span><span class="s1">)]</span><span class="s0">, </span><span class="s1">[random.randint(</span><span class="s3">0</span><span class="s0">, </span><span class="s3">2</span><span class="s1">)]</span><span class="s0">, </span><span class="s3">0</span><span class="s0">, </span><span class="s1">Y])</span>
+
+
+<span class="s2">#print(len(agents))</span>
+
+<span class="s2"># each agent is completely defined by its memory</span>
+<span class="s2"># agents = [agent1_memory, agent2_memory, ...agent_i_memory, agent_j_memory...]</span>
+<span class="s1">max_memory_length = </span><span class="s3">4</span>
+
+<span class="s2"># this returns the result of the moves of each agent</span>
+<span class="s0">def </span><span class="s1">play(agent_i_move</span><span class="s0">, </span><span class="s1">agent_j_move</span><span class="s0">, </span><span class="s1">reward_func):</span>
+
+    <span class="s2"># this line adds together the population codes of the two agents</span>
+    <span class="s2"># to determine which of the three reward matrices should be used</span>
+    <span class="s2"># reward_matrix_index = agent_i_pop_code + agent_j_pop_code</span>
+
+    <span class="s2"># return the reward pair for the moves of agent_i and agent_j</span>
+    <span class="s0">return </span><span class="s1">reward_func[agent_i_move][agent_j_move]</span>
+
+
+<span class="s2"># this runs multiple rounds of agents playing each other</span>
+<span class="s0">def </span><span class="s1">simulate(agents</span><span class="s0">, </span><span class="s1">reward_func</span><span class="s0">, </span><span class="s1">moves</span><span class="s0">, </span><span class="s1">number_of_rounds=</span><span class="s3">100</span><span class="s0">, </span><span class="s1">max_mem_length=</span><span class="s3">4</span><span class="s0">, </span><span class="s1">pop1size=</span><span class="s3">100</span><span class="s0">, </span><span class="s1">pop2size=</span><span class="s3">100</span><span class="s0">, </span><span class="s1">interaction=</span><span class="s4">'both'</span><span class="s1">):</span>
+
+    <span class="s2"># how many rounds</span>
+    <span class="s1">rounds = range(</span><span class="s3">1</span><span class="s0">, </span><span class="s1">number_of_rounds)</span>
+
+    <span class="s2"># reward history</span>
+    <span class="s1">reward_history_blue = []</span>
+    <span class="s1">reward_history_orange = []</span>
+    <span class="s1">agent_move_history_blue = []</span>
+    <span class="s1">agent_move_history_orange = []</span>
+
+    <span class="s2"># for each round</span>
+    <span class="s0">for </span><span class="s1">turn </span><span class="s0">in </span><span class="s1">rounds:</span>
+
+        <span class="s2"># run a single round of the game and print the result</span>
+        <span class="s1">print()</span>
+        <span class="s1">print(</span><span class="s4">'round ' </span><span class="s1">+ str(turn))</span>
+
+        <span class="s0">if </span><span class="s1">interaction == </span><span class="s4">'inter'</span><span class="s1">:</span>
+            <span class="s2"># choose a pair of agents at random</span>
+            <span class="s2"># one from each group</span>
+            <span class="s1">agent_i = random.randint(</span><span class="s3">0</span><span class="s0">, </span><span class="s1">pop1size - </span><span class="s3">1</span><span class="s1">)</span>
+            <span class="s1">agent_j = random.randint(pop1size</span><span class="s0">, </span><span class="s1">pop1size + pop2size - </span><span class="s3">2</span><span class="s1">)</span>
+        <span class="s0">elif </span><span class="s1">interaction == </span><span class="s4">'both'</span><span class="s1">:</span>
+            <span class="s2"># choose a pair of agents at random</span>
+            <span class="s2"># could be any group combination</span>
+            <span class="s1">agent_i = random.randint(</span><span class="s3">0</span><span class="s0">, </span><span class="s1">pop1size + pop2size - </span><span class="s3">2</span><span class="s1">)</span>
+            <span class="s1">agent_j = random.randint(</span><span class="s3">0</span><span class="s0">, </span><span class="s1">pop1size + pop2size - </span><span class="s3">2</span><span class="s1">)</span>
+
+        <span class="s1">print(</span><span class="s4">'agent_i ' </span><span class="s1">+ str(agent_i))</span>
+        <span class="s1">print(</span><span class="s4">'agent_j ' </span><span class="s1">+ str(agent_j))</span>
+
+        <span class="s2"># recover the population type of each agent</span>
+        <span class="s2"># it's always the first element in the agent</span>
+        <span class="s1">agent_i_pop_code = agents[agent_i][-</span><span class="s3">1</span><span class="s1">]</span>
+        <span class="s1">agent_j_pop_code = agents[agent_j][-</span><span class="s3">1</span><span class="s1">]</span>
+
+        <span class="s2"># each agent chooses what to do</span>
+        <span class="s2"># based on their memory of the moves of the other agent</span>
+        <span class="s1">agent_i_move</span><span class="s0">, </span><span class="s1">agent_j_move</span><span class="s0">, </span><span class="s1">reward_matrix = agent_choose(agents[agent_i]</span><span class="s0">, </span><span class="s1">agent_i</span><span class="s0">, </span><span class="s1">agents[agent_j]</span><span class="s0">, </span><span class="s1">agent_j</span><span class="s0">, </span><span class="s1">reward_func</span><span class="s0">, </span><span class="s1">moves)</span>
+
+        <span class="s2"># if either agent is from the dominant group, they might be racist</span>
+        <span class="s0">if </span><span class="s1">agent_i_pop_code == B </span><span class="s0">or </span><span class="s1">agent_j_pop_code == B:</span>
+            <span class="s2"># find out first if one makes a racist utterance</span>
+            <span class="s1">utterance_i</span><span class="s0">, </span><span class="s1">utterance_j = agent_utterance(agents[agent_i]</span><span class="s0">, </span><span class="s1">agents[agent_j]</span><span class="s0">, </span><span class="s1">agent_i_pop_code</span><span class="s0">, </span><span class="s1">agent_j_pop_code)</span>
+            <span class="s2"># if so update the beliefs of some other agents in the blue group</span>
+            <span class="s0">if </span><span class="s1">utterance_i == </span><span class="s4">'slur'</span><span class="s1">:</span>
+                <span class="s1">agents = update_beliefs(agents</span><span class="s0">, </span><span class="s1">pop1size+pop2size-</span><span class="s3">2</span><span class="s1">)</span>
+            <span class="s0">elif </span><span class="s1">utterance_j == </span><span class="s4">'slur'</span><span class="s1">:</span>
+                <span class="s1">agents = update_beliefs(agents</span><span class="s0">, </span><span class="s1">pop1size+pop2size-</span><span class="s3">2</span><span class="s1">)</span>
+
+        <span class="s2"># add agent_j's move to agent_i's memory</span>
+        <span class="s1">agents[agent_i][agent_j_pop_code].append(agent_j_move)</span>
+
+        <span class="s0">if </span><span class="s1">len(agents[agent_i][agent_j_pop_code]) &gt; max_mem_length:</span>
+            <span class="s2"># delete the oldest (first) item on agent1's memory</span>
+            <span class="s1">agents[agent_i][agent_j_pop_code].pop(</span><span class="s3">0</span><span class="s1">)</span>
+
+        <span class="s2"># add agent_i's move to agent_j's memory</span>
+        <span class="s1">agents[agent_j][agent_i_pop_code].append(agent_i_move)</span>
+
+        <span class="s0">if </span><span class="s1">len(agents[agent_j][agent_i_pop_code]) &gt; max_mem_length:</span>
+            <span class="s2"># delete the oldest (first) item on agent_j's memory</span>
+            <span class="s1">agents[agent_j][agent_i_pop_code].pop(</span><span class="s3">0</span><span class="s1">)</span>
+
+        <span class="s1">outcome = play(agent_i_move</span><span class="s0">, </span><span class="s1">agent_j_move</span><span class="s0">, </span><span class="s1">reward_matrix)</span>
+        <span class="s1">print(</span><span class="s4">'rewards ' </span><span class="s1">+ str(outcome))</span>
+
+        <span class="s1">reward_history_blue</span><span class="s0">, </span><span class="s1">reward_history_orange = record_reward_history(agent_i_pop_code</span><span class="s0">, </span><span class="s1">agent_j_pop_code</span><span class="s0">, </span><span class="s1">outcome</span><span class="s0">, </span><span class="s1">reward_history_blue</span><span class="s0">, </span><span class="s1">reward_history_orange)</span>
+
+        <span class="s1">agent_move_history_blue</span><span class="s0">, </span><span class="s1">agent_move_history_orange = record_move_history(turn</span><span class="s0">, </span><span class="s1">agent_i_pop_code</span><span class="s0">, </span><span class="s1">agent_i_move</span><span class="s0">, </span><span class="s1">agent_j_pop_code</span><span class="s0">, </span><span class="s1">agent_j_move</span><span class="s0">, </span><span class="s1">agent_move_history_blue</span><span class="s0">, </span><span class="s1">agent_move_history_orange)</span>
+
+
+    <span class="s0">return </span><span class="s1">reward_history_blue</span><span class="s0">, </span><span class="s1">reward_history_orange</span><span class="s0">, </span><span class="s1">agent_move_history_blue</span><span class="s0">, </span><span class="s1">agent_move_history_orange</span>
+
+
+<span class="s0">def </span><span class="s1">agent_utterance(agent_i</span><span class="s0">, </span><span class="s1">agent_j</span><span class="s0">, </span><span class="s1">agent_i_pop_code</span><span class="s0">, </span><span class="s1">agent_j_pop_code):</span>
+
+    <span class="s1">agent_racism_indice = </span><span class="s3">2</span>
+
+    <span class="s1">p_u_given_r = </span><span class="s3">0.5</span>
+    <span class="s1">utterance_i = </span><span class="s4">'null'</span>
+    <span class="s1">utterance_j = </span><span class="s4">'null'</span>
+
+    <span class="s2">#</span>
+    <span class="s0">if </span><span class="s1">agent_i_pop_code == </span><span class="s3">0 </span><span class="s0">and </span><span class="s1">agent_j_pop_code == </span><span class="s3">1</span><span class="s1">:</span>
+        <span class="s1">print(</span><span class="s4">'agent racism ' </span><span class="s1">+ str(agent_i[agent_racism_indice]))</span>
+        <span class="s1">print(</span><span class="s4">'p of slur ' </span><span class="s1">+ str(p_u_given_r))</span>
+        <span class="s0">if </span><span class="s1">random.betavariate(</span><span class="s3">1</span><span class="s0">,</span><span class="s3">1</span><span class="s1">) &lt; (p_u_given_r * agent_i[agent_racism_indice]):</span>
+            <span class="s1">utterance_i = </span><span class="s4">'slur'</span>
+
+    <span class="s0">if </span><span class="s1">agent_j_pop_code == </span><span class="s3">0 </span><span class="s0">and </span><span class="s1">agent_i_pop_code == </span><span class="s3">1</span><span class="s1">:</span>
+        <span class="s0">if </span><span class="s1">random.betavariate(</span><span class="s3">1</span><span class="s0">, </span><span class="s3">1</span><span class="s1">) &lt; (p_u_given_r * agent_j[agent_racism_indice]):</span>
+            <span class="s1">utterance_j = </span><span class="s4">'slur'</span>
+
+
+    <span class="s0">return </span><span class="s1">utterance_i</span><span class="s0">, </span><span class="s1">utterance_j</span>
+
+
+<span class="s2"># this updates the racism level of audience members exposed to a racist utterance</span>
+<span class="s0">def </span><span class="s1">update_beliefs(agents</span><span class="s0">, </span><span class="s1">popsize):</span>
+
+    <span class="s1">p_u_given_r = </span><span class="s3">0.5</span>
+    <span class="s1">p_u_given_not_r = </span><span class="s3">0.03</span>
+    <span class="s1">agent_racism_indice = </span><span class="s3">2</span>
+
+    <span class="s2"># Pick N the number of agents in audience</span>
+    <span class="s2"># up to 10</span>
+    <span class="s1">N = random.randint(</span><span class="s3">1</span><span class="s0">, </span><span class="s3">3</span><span class="s1">)</span>
+    <span class="s2"># select that number of audience members randomly</span>
+    <span class="s1">audience = [random.randint(</span><span class="s3">0</span><span class="s0">, </span><span class="s1">popsize) </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range(</span><span class="s3">1</span><span class="s0">, </span><span class="s1">N)]</span>
+
+    <span class="s2"># now for each individual</span>
+    <span class="s0">for </span><span class="s1">individual </span><span class="s0">in </span><span class="s1">audience:</span>
+        <span class="s2"># find out how racist it was to begin with</span>
+        <span class="s1">p_r = agents[individual][agent_racism_indice]</span>
+        <span class="s2"># update its racism using Bayes' rule</span>
+        <span class="s1">post_r_given_u = (p_u_given_r * p_r)/(p_u_given_r * p_r + p_u_given_not_r * (</span><span class="s3">1</span><span class="s1">-p_r))</span>
+        <span class="s1">agents[individual][agent_racism_indice] = post_r_given_u</span>
+
+    <span class="s0">return </span><span class="s1">agents</span>
+
+
+
+<span class="s2"># appends the reward histories with the latest results</span>
+<span class="s0">def </span><span class="s1">record_reward_history(agent_i_pop_code</span><span class="s0">, </span><span class="s1">agent_j_pop_code</span><span class="s0">, </span><span class="s1">outcome</span><span class="s0">, </span><span class="s1">reward_history_blue</span><span class="s0">, </span><span class="s1">reward_history_yellow):</span>
+
+    <span class="s0">if </span><span class="s1">agent_i_pop_code == </span><span class="s3">0</span><span class="s1">:</span>
+        <span class="s1">reward_history_blue.append(outcome[</span><span class="s3">0</span><span class="s1">])</span>
+    <span class="s0">else</span><span class="s1">:</span>
+        <span class="s1">reward_history_yellow.append(outcome[</span><span class="s3">0</span><span class="s1">])</span>
+
+    <span class="s0">if </span><span class="s1">agent_j_pop_code == </span><span class="s3">0</span><span class="s1">:</span>
+        <span class="s1">reward_history_blue.append(outcome[</span><span class="s3">1</span><span class="s1">])</span>
+    <span class="s0">else</span><span class="s1">:</span>
+        <span class="s1">reward_history_yellow.append(outcome[</span><span class="s3">1</span><span class="s1">])</span>
+
+    <span class="s0">return </span><span class="s1">reward_history_blue</span><span class="s0">, </span><span class="s1">reward_history_yellow</span>
+
+
+
+<span class="s2"># records the move history, tagged by the turn number</span>
+<span class="s2"># grouped by agent colour</span>
+<span class="s0">def </span><span class="s1">record_move_history(turn</span><span class="s0">, </span><span class="s1">agent_i_pop_code</span><span class="s0">, </span><span class="s1">agent_i_move</span><span class="s0">, </span><span class="s1">agent_j_pop_code</span><span class="s0">, </span><span class="s1">agent_j_move</span><span class="s0">, </span><span class="s1">agent_move_history_blue</span><span class="s0">, </span><span class="s1">agent_move_history_orange):</span>
+
+    <span class="s0">if </span><span class="s1">agent_i_pop_code == </span><span class="s3">0</span><span class="s1">:</span>
+        <span class="s1">agent_move_history_blue.append([agent_i_move</span><span class="s0">, </span><span class="s1">turn])</span>
+    <span class="s0">elif </span><span class="s1">agent_i_pop_code == </span><span class="s3">1</span><span class="s1">:</span>
+        <span class="s1">agent_move_history_orange.append([agent_i_move</span><span class="s0">, </span><span class="s1">turn])</span>
+
+    <span class="s0">if </span><span class="s1">agent_j_pop_code == </span><span class="s3">0</span><span class="s1">:</span>
+        <span class="s1">agent_move_history_blue.append([agent_j_move</span><span class="s0">, </span><span class="s1">turn])</span>
+    <span class="s0">elif </span><span class="s1">agent_j_pop_code == </span><span class="s3">1</span><span class="s1">:</span>
+        <span class="s1">agent_move_history_orange.append([agent_j_move</span><span class="s0">, </span><span class="s1">turn])</span>
+
+    <span class="s0">return </span><span class="s1">agent_move_history_blue</span><span class="s0">, </span><span class="s1">agent_move_history_orange</span>
+
+
+
+<span class="s2"># this function chooses the best response to the memory of the opponent's move</span>
+<span class="s0">def </span><span class="s1">agent_choose(agent_i</span><span class="s0">, </span><span class="s1">agent_i_number</span><span class="s0">, </span><span class="s1">agent_j</span><span class="s0">, </span><span class="s1">agent_j_number</span><span class="s0">, </span><span class="s1">reward_func</span><span class="s0">, </span><span class="s1">moves):</span>
+
+    <span class="s2"># list position where racism score is stored</span>
+    <span class="s1">agent_racism_indice = </span><span class="s3">2</span>
+
+    <span class="s2"># recover the population type of each agent</span>
+    <span class="s2"># it's always the last element in the agent</span>
+    <span class="s1">agent_i_pop_code = agent_i[-</span><span class="s3">1</span><span class="s1">]</span>
+    <span class="s1">agent_j_pop_code = agent_j[-</span><span class="s3">1</span><span class="s1">]</span>
+
+    <span class="s1">print(</span><span class="s4">'Agent i type ' </span><span class="s1">+ str(agent_i_pop_code))</span>
+    <span class="s1">print(</span><span class="s4">'Agent j type ' </span><span class="s1">+ str(agent_j_pop_code))</span>
+
+    <span class="s2"># first obtain the policy of the other agent you are playing against</span>
+    <span class="s2"># from your memory [what you remember they played in the last rounds]</span>
+    <span class="s1">agent_i_memory_of_policy_other_agent = prob_dist(agent_i[agent_j_pop_code]</span><span class="s0">, </span><span class="s1">moves)</span>
+    <span class="s1">agent_j_memory_of_policy_other_agent = prob_dist(agent_j[agent_i_pop_code]</span><span class="s0">, </span><span class="s1">moves)</span>
+
+    <span class="s1">print(</span><span class="s4">'Agent i memory of agent j type policy ' </span><span class="s1">+ str(agent_i_memory_of_policy_other_agent))</span>
+    <span class="s1">print(</span><span class="s4">'Agent j memory of agent i type policy ' </span><span class="s1">+ str(agent_j_memory_of_policy_other_agent))</span>
+
+    <span class="s2"># then obtain policies of agents of your own type (if they are different)</span>
+    <span class="s1">agent_i_memory_of_policy_own_group = prob_dist(agent_i[agent_i_pop_code]</span><span class="s0">, </span><span class="s1">moves)</span>
+    <span class="s1">agent_j_memory_of_policy_own_group = prob_dist(agent_j[agent_j_pop_code]</span><span class="s0">, </span><span class="s1">moves)</span>
+
+    <span class="s2"># choose reward matrix to use for this agent pair</span>
+    <span class="s1">reward_matrix = select_reward_matrix(agent_i_pop_code</span><span class="s0">, </span><span class="s1">agent_j_pop_code</span><span class="s0">, </span><span class="s1">reward_func)</span>
+    <span class="s2"># choose best responses for each agent against the other</span>
+    <span class="s1">agent_i_best_response</span><span class="s0">, </span><span class="s1">payoffs_i_to_j = best_response(agent_i</span><span class="s0">, </span><span class="s1">agent_i_memory_of_policy_other_agent</span><span class="s0">, </span><span class="s1">reward_matrix</span><span class="s0">, </span><span class="s1">moves</span><span class="s0">, </span><span class="s3">0</span><span class="s1">)</span>
+    <span class="s1">agent_j_best_response</span><span class="s0">, </span><span class="s1">payoffs_j_to_i = best_response(agent_j</span><span class="s0">, </span><span class="s1">agent_j_memory_of_policy_other_agent</span><span class="s0">, </span><span class="s1">reward_matrix</span><span class="s0">, </span><span class="s1">moves</span><span class="s0">, </span><span class="s3">1</span><span class="s1">)</span>
+
+    <span class="s2"># now repeat for agent_i against vs its own group member</span>
+    <span class="s2"># choose reward matrix to use for this agent pair</span>
+    <span class="s1">reward_matrix_own_i = select_reward_matrix(agent_i_pop_code</span><span class="s0">, </span><span class="s1">agent_i_pop_code</span><span class="s0">, </span><span class="s1">reward_func)</span>
+    <span class="s2"># choose best responses for each agent against the other</span>
+    <span class="s1">agent_i_best_response_to_i</span><span class="s0">, </span><span class="s1">payoffs_i_to_i = best_response(agent_i</span><span class="s0">, </span><span class="s1">agent_i_memory_of_policy_own_group</span><span class="s0">, </span><span class="s1">reward_matrix_own_i</span><span class="s0">, </span><span class="s1">moves</span><span class="s0">, </span><span class="s3">0</span><span class="s1">)</span>
+
+    <span class="s2"># now repeat for agent_j against vs its own group member</span>
+    <span class="s2"># choose reward matrix to use for this agent pair</span>
+    <span class="s1">reward_matrix_own_j = select_reward_matrix(agent_j_pop_code</span><span class="s0">, </span><span class="s1">agent_j_pop_code</span><span class="s0">, </span><span class="s1">reward_func)</span>
+    <span class="s2"># choose best responses for each agent against the other</span>
+    <span class="s1">agent_j_best_response_to_j</span><span class="s0">, </span><span class="s1">payoffs_j_to_j = best_response(agent_j</span><span class="s0">, </span><span class="s1">agent_j_memory_of_policy_own_group</span><span class="s0">,</span>
+                                                              <span class="s1">reward_matrix_own_j</span><span class="s0">, </span><span class="s1">moves</span><span class="s0">, </span><span class="s3">1</span><span class="s1">)</span>
+    <span class="s2"># print('payoffs_i_to_j' + str(payoffs_i_to_j))</span>
+    <span class="s2"># print('payoffs_i_to_i' + str(payoffs_i_to_i))</span>
+    <span class="s2"># print('payoffs_j_to_i' + str(payoffs_j_to_i))</span>
+    <span class="s2"># print('payoffs_j_to_j' + str(payoffs_j_to_j))</span>
+
+    <span class="s2"># treat out group members no worse than you would in group members</span>
+    <span class="s0">if </span><span class="s1">max(payoffs_i_to_i) &lt; max(payoffs_i_to_j):</span>
+        <span class="s2"># agent will not follow equality maxim if they are racist</span>
+        <span class="s2"># but this is randomised</span>
+        <span class="s0">if </span><span class="s1">random.betavariate(</span><span class="s3">1</span><span class="s0">, </span><span class="s3">1</span><span class="s1">) &gt; agent_i[agent_racism_indice]:</span>
+            <span class="s1">agent_i_best_response = agent_i_best_response_to_i</span>
+
+    <span class="s0">if </span><span class="s1">max(payoffs_j_to_j) &lt; max(payoffs_j_to_i):</span>
+        <span class="s2"># agent will not follow equality maxim if they are racist</span>
+        <span class="s2"># but this is randomised</span>
+        <span class="s0">if </span><span class="s1">random.betavariate(</span><span class="s3">1</span><span class="s0">, </span><span class="s3">1</span><span class="s1">) &gt; agent_j[agent_racism_indice]:</span>
+            <span class="s1">agent_j_best_response = agent_j_best_response_to_j</span>
+
+    <span class="s2"># print the agent memory and the best response for each agent</span>
+    <span class="s1">print(</span><span class="s4">'agent number ' </span><span class="s1">+ str(agent_i_number + </span><span class="s3">1</span><span class="s1">) + </span><span class="s4">' memory ' </span><span class="s1">+ str(convert_moves(agent_i[agent_j_pop_code])) + </span><span class="s4">' move ' </span><span class="s1">+ str(</span>
+            <span class="s1">convert_moves([agent_i_best_response])))</span>
+    <span class="s1">print(</span><span class="s4">'agent number ' </span><span class="s1">+ str(agent_j_number + </span><span class="s3">1</span><span class="s1">) + </span><span class="s4">' memory ' </span><span class="s1">+ str(convert_moves(agent_j[agent_i_pop_code])) + </span><span class="s4">' move ' </span><span class="s1">+ str(</span>
+            <span class="s1">convert_moves([agent_j_best_response])))</span>
+
+    <span class="s0">return </span><span class="s1">agent_i_best_response</span><span class="s0">, </span><span class="s1">agent_j_best_response</span><span class="s0">, </span><span class="s1">reward_matrix</span>
+
+
+<span class="s2"># this function returns the correct reward matrix</span>
+<span class="s0">def </span><span class="s1">select_reward_matrix(agent_i_pop_code</span><span class="s0">, </span><span class="s1">agent_j_pop_code</span><span class="s0">, </span><span class="s1">reward_func):</span>
+
+    <span class="s2"># agent_population_codes</span>
+    <span class="s1">B = </span><span class="s3">0</span>
+    <span class="s1">Y = </span><span class="s3">1</span>
+
+    <span class="s2"># pick matrix</span>
+    <span class="s0">if </span><span class="s1">agent_i_pop_code == B </span><span class="s0">and </span><span class="s1">agent_j_pop_code == B:</span>
+        <span class="s1">reward_matrix_index = </span><span class="s3">0</span>
+    <span class="s0">elif </span><span class="s1">agent_i_pop_code == B </span><span class="s0">and </span><span class="s1">agent_j_pop_code == Y:</span>
+        <span class="s1">reward_matrix_index = </span><span class="s3">1</span>
+    <span class="s0">elif </span><span class="s1">agent_i_pop_code == Y </span><span class="s0">and </span><span class="s1">agent_j_pop_code == B:</span>
+        <span class="s1">reward_matrix_index = </span><span class="s3">2</span>
+    <span class="s0">elif </span><span class="s1">agent_i_pop_code == Y </span><span class="s0">and </span><span class="s1">agent_j_pop_code == Y:</span>
+        <span class="s1">reward_matrix_index = </span><span class="s3">3</span>
+
+    <span class="s2"># return it</span>
+    <span class="s0">return </span><span class="s1">reward_func[reward_matrix_index]</span>
+
+
+<span class="s2"># this computes the best response as expectimax for the reward (payoff) received this round</span>
+<span class="s2"># agent_order is the specification of whether we are optimising for</span>
+<span class="s2"># the first or second agent as listed in each reward pair</span>
+<span class="s2"># in the reward matrix</span>
+<span class="s0">def </span><span class="s1">best_response(agent</span><span class="s0">, </span><span class="s1">policy_other_agent</span><span class="s0">, </span><span class="s1">reward_matrix</span><span class="s0">, </span><span class="s1">moves</span><span class="s0">, </span><span class="s1">agent_order):</span>
+
+    <span class="s2"># record the value of the best response so far</span>
+    <span class="s2"># start with 0 as a lower bound</span>
+    <span class="s1">maximum = </span><span class="s3">0</span>
+
+    <span class="s2"># set up list to store payoffs</span>
+    <span class="s1">payoffs = []</span>
+
+    <span class="s2"># for each possible action</span>
+    <span class="s0">for </span><span class="s1">action </span><span class="s0">in </span><span class="s1">moves:</span>
+
+        <span class="s2">#print('action ' + str(action))</span>
+
+        <span class="s2"># calculate expected payoff for action</span>
+        <span class="s1">payoff_for_action = expected_payoff(action</span><span class="s0">, </span><span class="s1">policy_other_agent</span><span class="s0">, </span><span class="s1">reward_matrix</span><span class="s0">, </span><span class="s1">moves</span><span class="s0">, </span><span class="s1">agent_order)</span>
+        <span class="s2">#print('value of action ' + str(payoff_for_action))</span>
+
+        <span class="s1">payoffs.append(payoff_for_action)</span>
+
+        <span class="s2"># if action has highest expected payoff so far</span>
+        <span class="s2"># then record both payoff and action as best_response</span>
+        <span class="s0">if </span><span class="s1">payoff_for_action &gt; maximum:</span>
+            <span class="s1">maximum = payoff_for_action</span>
+            <span class="s1">best_response = action</span>
+
+    <span class="s0">return </span><span class="s1">best_response</span><span class="s0">, </span><span class="s1">payoffs</span>
+
+
+<span class="s2"># calculates the expected payoff for a given action</span>
+<span class="s0">def </span><span class="s1">expected_payoff(action</span><span class="s0">, </span><span class="s1">policy_other_agent</span><span class="s0">, </span><span class="s1">reward_matrix</span><span class="s0">, </span><span class="s1">moves</span><span class="s0">, </span><span class="s1">agent_order):</span>
+
+    <span class="s2"># print which agent you are (row or column)</span>
+    <span class="s2">#if agent_order == 0:</span>
+    <span class="s2">#    print('agent order == 0')</span>
+    <span class="s2">#else:</span>
+    <span class="s2">#    print('agent order == 1')</span>
+
+    <span class="s2"># create a running total for the expected value of the opponent's move</span>
+    <span class="s1">running_total = </span><span class="s3">0</span>
+    <span class="s2"># for each possible opponent response</span>
+    <span class="s0">for </span><span class="s1">opponent_action </span><span class="s0">in </span><span class="s1">moves:</span>
+        <span class="s2"># calculate the probability of that response times the value of the outcome to you</span>
+        <span class="s2"># use this to increment the running total</span>
+        <span class="s0">if </span><span class="s1">agent_order == </span><span class="s3">0</span><span class="s1">:</span>
+            <span class="s2"># whether you are row agent</span>
+            <span class="s1">running_total += policy_other_agent[opponent_action] * reward_matrix[action][opponent_action][agent_order]</span>
+        <span class="s0">else</span><span class="s1">:</span>
+            <span class="s2"># or column agent</span>
+            <span class="s1">running_total += policy_other_agent[opponent_action] * reward_matrix[opponent_action][action][agent_order]</span>
+
+    <span class="s0">return </span><span class="s1">running_total</span>
+
+
+<span class="s2"># this utility function converts agent actions from numbers into letters</span>
+<span class="s2"># this is only to be used for printing to enable readability of the output</span>
+<span class="s0">def </span><span class="s1">convert_moves(agent_moves):</span>
+
+    <span class="s1">agent_moves_letters = []</span>
+
+    <span class="s0">for </span><span class="s1">move </span><span class="s0">in </span><span class="s1">agent_moves:</span>
+        <span class="s0">if </span><span class="s1">move == </span><span class="s3">0</span><span class="s1">:</span>
+            <span class="s1">agent_moves_letters.append(</span><span class="s4">'L'</span><span class="s1">)</span>
+        <span class="s0">elif </span><span class="s1">move == </span><span class="s3">1</span><span class="s1">:</span>
+            <span class="s1">agent_moves_letters.append(</span><span class="s4">'M'</span><span class="s1">)</span>
+        <span class="s0">elif </span><span class="s1">move == </span><span class="s3">2</span><span class="s1">:</span>
+            <span class="s1">agent_moves_letters.append(</span><span class="s4">'H'</span><span class="s1">)</span>
+
+    <span class="s0">return </span><span class="s1">agent_moves_letters</span>
+
+
+<span class="s2"># this returns a probability distribution over actions from an agent's memory</span>
+<span class="s0">def </span><span class="s1">prob_dist(agent_memory</span><span class="s0">, </span><span class="s1">moves):</span>
+
+    <span class="s0">if </span><span class="s1">agent_memory == []:</span>
+        <span class="s1">probability_distribution = [</span><span class="s3">1</span><span class="s1">/len(moves) </span><span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">range(</span><span class="s3">0</span><span class="s0">, </span><span class="s1">len(moves))]</span>
+
+    <span class="s0">else</span><span class="s1">:</span>
+        <span class="s2"># create an empty list to hold my probability distribution</span>
+        <span class="s1">probability_distribution = []</span>
+        <span class="s0">for </span><span class="s1">move </span><span class="s0">in </span><span class="s1">moves:</span>
+            <span class="s1">probability_distribution.append(</span><span class="s3">0</span><span class="s1">)</span>
+
+        <span class="s2"># the probability increments are 1/length of the memory</span>
+        <span class="s2"># (data the agent has to create the probability distribution)</span>
+        <span class="s2"># if agent has memory length 4 this will 1/4</span>
+        <span class="s1">increment = </span><span class="s3">1</span><span class="s1">/len(agent_memory)</span>
+
+        <span class="s2"># now build up the probability distribution from the memory</span>
+        <span class="s0">for </span><span class="s1">move </span><span class="s0">in </span><span class="s1">agent_memory:</span>
+            <span class="s1">probability_distribution[move] += increment</span>
+
+    <span class="s0">return </span><span class="s1">probability_distribution</span>
+
+
+<span class="s0">def </span><span class="s1">analyse_simulation(ts1</span><span class="s0">, </span><span class="s1">ts2</span><span class="s0">, </span><span class="s1">j):</span>
+
+    <span class="s1">ts1_sum = numpy.cumsum(ts1)</span>
+    <span class="s1">ts1_index = numpy.arange(</span><span class="s3">1</span><span class="s0">, </span><span class="s1">len(ts1)+</span><span class="s3">1</span><span class="s0">, </span><span class="s3">1</span><span class="s1">)</span>
+    <span class="s1">ts1_av = ts1_sum / ts1_index</span>
+
+    <span class="s1">ts2_sum = numpy.cumsum(ts2)</span>
+    <span class="s1">ts2_index = numpy.arange(</span><span class="s3">1</span><span class="s0">, </span><span class="s1">len(ts2) + </span><span class="s3">1</span><span class="s0">, </span><span class="s3">1</span><span class="s1">)</span>
+    <span class="s1">ts2_av = ts2_sum / ts2_index</span>
+
+    <span class="s1">fig = plt.figure()</span>
+    <span class="s1">ax = plt.gca()</span>
+    <span class="s1">ax.set_ylim(</span><span class="s3">0</span><span class="s0">, </span><span class="s3">6.1</span><span class="s1">)</span>
+    <span class="s1">plt.plot(ts1_av)</span>
+    <span class="s1">plt.plot(ts2_av)</span>
+    <span class="s1">plt.show()</span>
+
+    <span class="s1">fig1 = plt.figure()</span>
+    <span class="s1">ax = plt.gca()</span>
+    <span class="s1">ax.set_ylim(</span><span class="s3">0</span><span class="s0">, </span><span class="s3">6.1</span><span class="s1">)</span>
+
+    <span class="s1">ts1_sum = numpy.zeros(len(ts1)-j)</span>
+    <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range(j</span><span class="s0">, </span><span class="s1">len(ts1)</span><span class="s0">, </span><span class="s3">1</span><span class="s1">):</span>
+        <span class="s1">ts1_sum[i-j] = numpy.sum(ts1[i-j:i])/j</span>
+
+    <span class="s1">ts2_sum = numpy.zeros(len(ts2)-j)</span>
+    <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range(j</span><span class="s0">, </span><span class="s1">len(ts2)</span><span class="s0">, </span><span class="s3">1</span><span class="s1">):</span>
+        <span class="s1">ts2_sum[i-j] = numpy.sum(ts2[i-j:i])/j</span>
+
+    <span class="s1">plt.plot(ts1_sum)</span>
+    <span class="s1">plt.plot(ts2_sum)</span>
+    <span class="s1">plt.show()</span>
+
+
+
+<span class="s1">reward_history_blue</span><span class="s0">, </span><span class="s1">reward_history_orange</span><span class="s0">, </span><span class="s1">agent_move_history_blue</span><span class="s0">, </span><span class="s1">agent_move_history_orange = simulate(agents</span><span class="s0">, </span><span class="s1">reward_function</span><span class="s0">, </span><span class="s1">moves</span><span class="s0">, </span><span class="s1">number_of_rounds=</span><span class="s3">10000</span><span class="s0">, </span><span class="s1">interaction=</span><span class="s4">'both'</span><span class="s1">)</span>
+
+<span class="s1">print(reward_history_blue)</span>
+<span class="s1">print(reward_history_orange)</span>
+<span class="s2"># 0 is agent_number, agents[0] is memory, reward function, moves</span>
+<span class="s2">#print(agent_choose(0, agents[0], reward_function, moves))</span>
+
+<span class="s1">time_series1 = numpy.array(reward_history_blue)</span>
+<span class="s1">time_series2 = numpy.array(reward_history_orange)</span>
+
+<span class="s1">analyse_simulation(time_series1</span><span class="s0">, </span><span class="s1">time_series2</span><span class="s0">, </span><span class="s3">1000</span><span class="s1">)</span>
+
+</pre>
+</body>
+</html>

@@ -169,7 +169,7 @@ def prob_dist(agent_memory, moves):
 
     return probability_distribution
 
-simulate(agents, reward_function, moves, number_of_rounds = 101)
+simulate(agents, reward_function, moves, number_of_rounds = 400)
 
 # 0 is agent_number, agents[0] is memory, reward function, moves
 #print(agent_choose(0, agents[0], reward_function, moves))
